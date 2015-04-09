@@ -9,12 +9,13 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.util.concurrent.Semaphore;
 
 import javax.swing.JPanel;
 import javax.swing.Timer;
 
 
-public class PingPong extends JPanel implements ActionListener, KeyListener {
+public class PingPong extends JPanel implements KeyListener {
 
     private boolean showTitleScreen = true;
     private boolean playing = false;
@@ -25,34 +26,16 @@ public class PingPong extends JPanel implements ActionListener, KeyListener {
     private boolean wPressed = false;
     private boolean sPressed = false;
 
-    private int ballX = 250;
-    private int ballY = 250;
-    private final int diameter = 20;
-    private int ballDeltaX = -1;
-    private int ballDeltaY = 3;
-
-    private int playerOneX = 25;
-    private int playerOneY = 250;
-    private int playerOneWidth = 10;
-    private int playerOneHeight = 50;
-
-    private int playerTwoX = 465;
-    private int playerTwoY = 250;
-    private int playerTwoWidth = 10;
-    private int playerTwoHeight = 50;
-
-    private final int paddleSpeed = 5;
-
     private int playerOneScore = 0;
     private int playerTwoScore = 0;
     private final int endGameScore = 3;
 
-    private boolean firstRdy = false;
-    private boolean secondRdy = false;
-
-    private PlayerOne playerOne = new PlayerOne();
-    private PlayerTwo playerTwo = new PlayerTwo();
+    private Player playerOne = new Player(PlayerType.PlayerOne);
+    private Player playerTwo = new Player(PlayerType.PlayerTwo);
     private Ball ball = new Ball();
+    private Game game = new Game();
+
+    private long time = System.currentTimeMillis();
 
     public PingPong() {
         setBackground(Color.BLACK);
@@ -60,19 +43,7 @@ public class PingPong extends JPanel implements ActionListener, KeyListener {
         setFocusable(true);
         addKeyListener(this);
 
-        Timer timer = new Timer(1000 / 60, this);
-        timer.start();
-    }
-
-    public void actionPerformed(ActionEvent e) {
-        step();
-    }
-
-    public void step() {
-        playerOne.start();
-        playerTwo.start();
-        ball.start();
-        repaint();
+        game.run();
     }
 
     public void paintComponent(Graphics g) {
@@ -91,8 +62,8 @@ public class PingPong extends JPanel implements ActionListener, KeyListener {
             g.drawString("Press 'P' to play.", 175, 400);
         } else if (playing) {
 
-            int playerOneRight = playerOneX + playerOneWidth;
-            int playerTwoLeft = playerTwoX;
+            int playerOneRight = playerOne.GetX() + playerOne.GetW();
+            int playerTwoLeft = playerTwo.GetX();
 
             for (int lineY = 0; lineY < getHeight(); lineY += 50) {
                 g.drawLine(250, lineY, 250, lineY + 25);
@@ -105,10 +76,10 @@ public class PingPong extends JPanel implements ActionListener, KeyListener {
             g.drawString(String.valueOf(playerOneScore), 100, 100);
             g.drawString(String.valueOf(playerTwoScore), 400, 100);
 
-            g.fillOval(ballX, ballY, diameter, diameter);
+            g.fillOval(ball.GetX(), ball.GetY(), ball.GetD(),ball.GetD());
 
-            g.fillRect(playerOneX, playerOneY, playerOneWidth, playerOneHeight);
-            g.fillRect(playerTwoX, playerTwoY, playerTwoWidth, playerTwoHeight);
+            g.fillRect(playerOne.GetX(), playerOne.GetY(), playerOne.GetW(), playerOne.GetH());
+            g.fillRect(playerTwo.GetX(), playerTwo.GetY(), playerTwo.GetW(), playerTwo.GetH());
         } else if (gameOver) {
 
             g.setFont(new Font(Font.DIALOG, Font.BOLD, 36));
@@ -149,10 +120,10 @@ public class PingPong extends JPanel implements ActionListener, KeyListener {
                 gameOver = false;
                 playing = false;
                 showTitleScreen = true;
-                playerOneY = 250;
-                playerTwoY = 250;
-                ballX = 250;
-                ballY = 250;
+                playerOne.SetY(250);
+                playerTwo.SetY(250);
+                ball.setX(250);
+                ball.setY(250);
                 playerOneScore = 0;
                 playerTwoScore = 0;
             }
@@ -160,10 +131,10 @@ public class PingPong extends JPanel implements ActionListener, KeyListener {
             if (e.getKeyCode() == KeyEvent.VK_SPACE) {
                 gameOver = false;
                 showTitleScreen = true;
-                playerOneY = 250;
-                playerTwoY = 250;
-                ballX = 250;
-                ballY = 250;
+                playerOne.SetY(250);
+                playerTwo.SetY(250);
+                ball.setX(250);
+                ball.setY(250);
                 playerOneScore = 0;
                 playerTwoScore = 0;
             }
@@ -184,106 +155,88 @@ public class PingPong extends JPanel implements ActionListener, KeyListener {
         }
     }
 
-    public class PlayerOne extends Thread {
-
-        public synchronized void start() {
-            if (playing) {
-                if (upPressed) {
-                    if (playerOneY - paddleSpeed > 0) {
-                        playerOneY -= paddleSpeed;
-                    }
-                }
-                if (downPressed) {
-                    if (playerOneY + paddleSpeed + playerOneHeight < getHeight()) {
-                        playerOneY += paddleSpeed;
-                    }
-                }
-                firstRdy = true;
+    public void CheckPressed() {
+        if (upPressed) {
+            if (playerOne.GetY() - playerOne.GetS() > 0) {
+                playerOne.SetY(playerOne.GetY() - playerOne.GetS());
+            }
+        }
+        if (downPressed) {
+            if (playerOne.GetY() + playerOne.GetS() + playerOne.GetH() < getHeight()) {
+                playerOne.SetY(playerOne.GetY() + playerOne.GetS());
+            }
+        }
+        if (wPressed) {
+            if (playerTwo.GetY() - playerTwo.GetS() > 0) {
+                playerTwo.SetY(playerTwo.GetY() - playerTwo.GetS());
+            }
+        }
+        if (sPressed) {
+            if (playerTwo.GetY() + playerTwo.GetS() + playerTwo.GetH() < getHeight()) {
+                playerTwo.SetY(playerTwo.GetY() + playerTwo.GetS());
             }
         }
     }
 
-    public class PlayerTwo extends Thread {
-
-        public synchronized void start() {
-            if (playing) {
-                if (wPressed) {
-                    if (playerTwoY - paddleSpeed > 0) {
-                        playerTwoY -= paddleSpeed;
-                    }
+    public void Movement() {
+        int nextBallLeft = ball.GetX() + ball.GetDX();
+        int nextBallRight = ball.GetX() + ball.GetD() + ball.GetDX();
+        int nextBallTop = ball.GetY() + ball.GetDY();
+        int nextBallBottom = ball.GetY() + ball.GetD() + ball.GetDY();
+        int playerOneRight = playerOne.GetX() + playerOne.GetW();
+        int playerOneTop = playerOne.GetY();
+        int playerOneBottom = playerOne.GetY() + playerOne.GetH();
+        int playerTwoLeft = playerTwo.GetX();
+        int playerTwoTop = playerTwo.GetY();
+        int playerTwoBottom = playerTwo.GetY() + playerTwo.GetH();
+        if (nextBallTop < 0 || nextBallBottom > getHeight()) {
+            ball.knockDY();
+        }
+        if (nextBallLeft < playerOneRight) {
+            if (nextBallTop > playerOneBottom || nextBallBottom < playerOneTop) {
+                playerTwoScore++;
+                if (playerTwoScore == endGameScore) {
+                    playing = false;
+                    gameOver = true;
                 }
-                if (sPressed) {
-                    if (playerTwoY + paddleSpeed + playerTwoHeight < getHeight()) {
-                        playerTwoY += paddleSpeed;
-                    }
-                }
-
-                secondRdy = true;
+                ball.restore();
+            } else {
+                ball.knockDX();
             }
         }
+        if (nextBallRight > playerTwoLeft) {
+            if (nextBallTop > playerTwoBottom || nextBallBottom < playerTwoTop) {
+                playerOneScore++;
+                if (playerOneScore == endGameScore) {
+                    playing = false;
+                    gameOver = true;
+                }
+                ball.restore();
+            } else {
+                ball.knockDX();
+            }
+        }
+        ball.move();
     }
 
-    public class Ball extends Thread {
+    public class Game extends Thread {
 
-        public void start() {
-            if (playing) {
-                int nextBallLeft = ballX + ballDeltaX;
-                int nextBallRight = ballX + diameter + ballDeltaX;
-                int nextBallTop = ballY + ballDeltaY;
-                int nextBallBottom = ballY + diameter + ballDeltaY;
-
-                int playerOneRight = playerOneX + playerOneWidth;
-                int playerOneTop = playerOneY;
-                int playerOneBottom = playerOneY + playerOneHeight;
-
-                float playerTwoLeft = playerTwoX;
-                float playerTwoTop = playerTwoY;
-                float playerTwoBottom = playerTwoY + playerTwoHeight;
-
-                if (nextBallTop < 0 || nextBallBottom > getHeight()) {
-                    ballDeltaY *= -1;
-                }
-
-                if (nextBallLeft < playerOneRight) {
-                    if (nextBallTop > playerOneBottom || nextBallBottom < playerOneTop) {
-
-                        playerTwoScore++;
-
-                        if (playerTwoScore == endGameScore) {
-                            playing = false;
-                            gameOver = true;
-                        }
-
-                        ballX = 250;
-                        ballY = 250;
-                    } else {
-                        ballDeltaX *= -1;
+        public void run() {
+            /*while (true) {
+                if (System.currentTimeMillis() - time < 1000 / 60) {
+                    try {
+                        Thread.sleep(10);
+                    } catch (Exception e) {
                     }
-                }
-
-                if (nextBallRight > playerTwoLeft) {
-                    if (nextBallTop > playerTwoBottom || nextBallBottom < playerTwoTop) {
-
-                        playerOneScore++;
-
-                        if (playerOneScore == endGameScore) {
-                            playing = false;
-                            gameOver = true;
-                        }
-
-                        ballX = 250;
-                        ballY = 250;
-                    } else {
-                        ballDeltaX *= -1;
+                } else {*/
+                    if (playing) {
+                        CheckPressed();
+                        Movement();
                     }
-                }
-
-                ballX += ballDeltaX;
-                ballY += ballDeltaY;
-
-                firstRdy = false;
-                secondRdy = false;
-            }
+                   /* time = System.currentTimeMillis();
+                }*/
+                repaint();
+           // }
         }
     }
 }
