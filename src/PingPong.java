@@ -9,13 +9,10 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
-import java.util.concurrent.Semaphore;
 
-import javax.swing.JPanel;
-import javax.swing.Timer;
+import javax.swing.*;
 
-
-public class PingPong extends JPanel implements KeyListener {
+public class PingPong extends JPanel implements KeyListener, ActionListener {
 
     private boolean showTitleScreen = true;
     private boolean playing = false;
@@ -33,9 +30,10 @@ public class PingPong extends JPanel implements KeyListener {
     private Player playerOne = new Player(PlayerType.PlayerOne);
     private Player playerTwo = new Player(PlayerType.PlayerTwo);
     private Ball ball = new Ball();
-    private Game game = new Game();
+    private Timer game = new Timer(1000/60, this);
 
-    private long time = System.currentTimeMillis();
+    private final long time = 1000 / 60;
+    private long evalTime = System.currentTimeMillis();
 
     public PingPong() {
         setBackground(Color.BLACK);
@@ -43,7 +41,7 @@ public class PingPong extends JPanel implements KeyListener {
         setFocusable(true);
         addKeyListener(this);
 
-        game.run();
+        game.start();
     }
 
     public void paintComponent(Graphics g) {
@@ -219,24 +217,21 @@ public class PingPong extends JPanel implements KeyListener {
         ball.move();
     }
 
-    public class Game extends Thread {
-
-        public void run() {
-            /*while (true) {
-                if (System.currentTimeMillis() - time < 1000 / 60) {
-                    try {
-                        Thread.sleep(10);
-                    } catch (Exception e) {
-                    }
-                } else {*/
-                    if (playing) {
-                        CheckPressed();
-                        Movement();
-                    }
-                   /* time = System.currentTimeMillis();
-                }*/
-                repaint();
-           // }
+    // game.start
+    public void actionPerformed(ActionEvent ev){
+        if(ev.getSource()==game){
+            if (System.currentTimeMillis() - evalTime < time) {
+                try {
+                    Thread.sleep(time - (System.currentTimeMillis() - evalTime));
+                } catch (Exception e) {
+                }
+            }
+            if (playing) {
+                CheckPressed();
+                Movement();
+            }
+            repaint();
+            evalTime = System.currentTimeMillis();
         }
     }
 }
